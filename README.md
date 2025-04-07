@@ -5,6 +5,7 @@
 ## Table of Contents
 - [Data Definition Language (DDL)](#data-definition-language-ddl)
 - [Data Manipulation Language (DML)](#data-manipulation-language-dml)
+- [Functions and stored procedures](#functions-and-stored-procedures)
 - [Query Optimization](#query-optimization)
 - [Snowflake-Specific Features](#snowflake-specific-features)
 - [Security Best Practices](#security-best-practices)
@@ -1032,6 +1033,445 @@ PIVOT (
 ) AS p
 ORDER BY product_category;
 ```
+
+## Functions and stored procedures
+### Snowflake Functions & Stored Procedures Reference Card
+
+### Basic SQL Functions
+
+### String Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `CONCAT(str1, str2, ...)` | Concatenates strings | `SELECT CONCAT('Snow', 'flake') → 'Snowflake'` |
+| `LOWER(string)` | Converts string to lowercase | `SELECT LOWER('SNOWFLAKE') → 'snowflake'` |
+| `UPPER(string)` | Converts string to uppercase | `SELECT UPPER('snowflake') → 'SNOWFLAKE'` |
+| `TRIM(string)` | Removes leading and trailing whitespace | `SELECT TRIM('  snow  ') → 'snow'` |
+| `LTRIM(string)` | Removes leading whitespace | `SELECT LTRIM('  snow  ') → 'snow  '` |
+| `RTRIM(string)` | Removes trailing whitespace | `SELECT RTRIM('  snow  ') → '  snow'` |
+| `SUBSTRING(string, position, [length])` | Extracts substring | `SELECT SUBSTRING('snowflake', 1, 4) → 'snow'` |
+| `REPLACE(string, search, replacement)` | Replaces all occurrences | `SELECT REPLACE('snowball', 'ball', 'flake') → 'snowflake'` |
+| `REGEXP_REPLACE(string, pattern, replacement)` | Replaces using regex | `SELECT REGEXP_REPLACE('abc123', '[0-9]+', 'X') → 'abcX'` |
+| `LENGTH(string)` | Returns string length | `SELECT LENGTH('snow') → 4` |
+| `SPLIT_PART(string, delimiter, part_number)` | Splits string and returns specified part | `SELECT SPLIT_PART('snow.flake.com', '.', 2) → 'flake'` |
+
+### Numeric Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `ABS(number)` | Absolute value | `SELECT ABS(-5) → 5` |
+| `ROUND(number, [decimals])` | Rounds to specified decimal places | `SELECT ROUND(5.678, 2) → 5.68` |
+| `FLOOR(number)` | Rounds down to nearest integer | `SELECT FLOOR(5.7) → 5` |
+| `CEILING(number)` | Rounds up to nearest integer | `SELECT CEILING(5.3) → 6` |
+| `POWER(base, exponent)` | Raises base to the power of exponent | `SELECT POWER(2, 3) → 8` |
+| `SQRT(number)` | Square root | `SELECT SQRT(16) → 4` |
+| `MOD(dividend, divisor)` | Modulo (remainder) | `SELECT MOD(10, 3) → 1` |
+
+### Date/Time Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `CURRENT_DATE()` | Current date | `SELECT CURRENT_DATE() → '2025-04-07'` |
+| `CURRENT_TIME()` | Current time | `SELECT CURRENT_TIME() → '14:30:25'` |
+| `CURRENT_TIMESTAMP()` | Current date and time | `SELECT CURRENT_TIMESTAMP() → '2025-04-07 14:30:25'` |
+| `DATEADD(part, count, date)` | Adds interval to date | `SELECT DATEADD('DAY', 7, '2025-04-01') → '2025-04-08'` |
+| `DATEDIFF(part, date1, date2)` | Difference between dates | `SELECT DATEDIFF('DAY', '2025-04-01', '2025-04-07') → 6` |
+| `DATE_TRUNC(part, date)` | Truncates to specified precision | `SELECT DATE_TRUNC('MONTH', '2025-04-07') → '2025-04-01'` |
+| `EXTRACT(part FROM date)` | Extracts part from date | `SELECT EXTRACT(MONTH FROM '2025-04-07') → 4` |
+| `TO_DATE(string, [format])` | Converts string to date | `SELECT TO_DATE('2025-04-07') → '2025-04-07'` |
+| `TO_TIMESTAMP(string, [format])` | Converts string to timestamp | `SELECT TO_TIMESTAMP('2025-04-07 14:30:25') → '2025-04-07 14:30:25'` |
+
+### Conditional Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `IFF(condition, true_result, false_result)` | Returns result based on condition | `SELECT IFF(5 > 3, 'Yes', 'No') → 'Yes'` |
+| `CASE WHEN...THEN...ELSE END` | Multi-condition branching | `SELECT CASE WHEN x > 10 THEN 'High' ELSE 'Low' END` |
+| `COALESCE(expr1, expr2, ...)` | Returns first non-null expression | `SELECT COALESCE(NULL, 'Snow', 'Flake') → 'Snow'` |
+| `NULLIF(expr1, expr2)` | Returns NULL if expr1 = expr2 | `SELECT NULLIF(5, 5) → NULL` |
+| `NVL(expr1, expr2)` | Returns expr2 if expr1 is NULL | `SELECT NVL(NULL, 'Default') → 'Default'` |
+
+### Advanced SQL Functions
+
+### Window Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `ROW_NUMBER()` | Sequential row number | `SELECT ROW_NUMBER() OVER (ORDER BY sales DESC)` |
+| `RANK()` | Rank with gaps | `SELECT RANK() OVER (PARTITION BY region ORDER BY sales DESC)` |
+| `DENSE_RANK()` | Rank without gaps | `SELECT DENSE_RANK() OVER (ORDER BY sales DESC)` |
+| `LAG(expr, [offset], [default])` | Access previous row's value | `SELECT LAG(sales, 1, 0) OVER (ORDER BY date)` |
+| `LEAD(expr, [offset], [default])` | Access next row's value | `SELECT LEAD(sales, 1, 0) OVER (ORDER BY date)` |
+| `FIRST_VALUE(expr)` | First value in window | `SELECT FIRST_VALUE(sales) OVER (PARTITION BY region ORDER BY date)` |
+| `LAST_VALUE(expr)` | Last value in window | `SELECT LAST_VALUE(sales) OVER (PARTITION BY region ORDER BY date)` |
+| `PERCENT_RANK()` | Relative rank (0 to 1) | `SELECT PERCENT_RANK() OVER (ORDER BY sales)` |
+
+### Aggregate Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `COUNT(expr)` | Count rows | `SELECT COUNT(*) FROM table` |
+| `SUM(expr)` | Sum of values | `SELECT SUM(sales) FROM table` |
+| `AVG(expr)` | Average of values | `SELECT AVG(sales) FROM table` |
+| `MIN(expr)` | Minimum value | `SELECT MIN(sales) FROM table` |
+| `MAX(expr)` | Maximum value | `SELECT MAX(sales) FROM table` |
+| `MEDIAN(expr)` | Median value | `SELECT MEDIAN(sales) FROM table` |
+| `STDDEV(expr)` | Standard deviation | `SELECT STDDEV(sales) FROM table` |
+| `VARIANCE(expr)` | Variance | `SELECT VARIANCE(sales) FROM table` |
+| `LISTAGG(expr, [delimiter])` | Concatenates values | `SELECT LISTAGG(name, ', ') FROM table` |
+| `ARRAY_AGG(expr)` | Aggregates into array | `SELECT ARRAY_AGG(name) FROM table` |
+| `OBJECT_AGG(key, value)` | Aggregates into object | `SELECT OBJECT_AGG(key, value) FROM table` |
+
+### Semi-structured Data Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `PARSE_JSON(string)` | Parses JSON string | `SELECT PARSE_JSON('{"name": "Snowflake"}')` |
+| `TRY_PARSE_JSON(string)` | Safely parses JSON string | `SELECT TRY_PARSE_JSON('{"name": "Snowflake"}')` |
+| `GET_PATH(variant, path)` | Gets value at specified path | `SELECT GET_PATH(v, 'name')` |
+| `OBJECT_CONSTRUCT(key, value, ...)` | Creates object | `SELECT OBJECT_CONSTRUCT('name', 'Snowflake')` |
+| `ARRAY_CONSTRUCT(element, ...)` | Creates array | `SELECT ARRAY_CONSTRUCT(1, 2, 3)` |
+| `ARRAY_SIZE(array)` | Returns array size | `SELECT ARRAY_SIZE([1, 2, 3]) → 3` |
+| `ARRAY_CONTAINS(value, array)` | Checks if array contains value | `SELECT ARRAY_CONTAINS(1, [1, 2, 3]) → TRUE` |
+| `FLATTEN(expr, [path], [outer], [recursive], [mode])` | Flattens arrays/objects | `SELECT value FROM TABLE(FLATTEN(data, 'items'))` |
+| `OBJECT_KEYS(object)` | Returns array of keys | `SELECT OBJECT_KEYS({"a": 1, "b": 2}) → ["a", "b"]` |
+
+### User-Defined Functions (UDFs)
+
+### SQL UDFs
+
+```sql
+-- Creating SQL UDF
+CREATE OR REPLACE FUNCTION calculate_discount(price FLOAT, discount_percent FLOAT)
+RETURNS FLOAT
+AS
+$$
+    price * (1 - discount_percent / 100)
+$$;
+
+-- Using SQL UDF
+SELECT calculate_discount(100.00, 15) → 85.00
+```
+
+### JavaScript UDFs
+
+```sql
+-- Creating JavaScript UDF
+CREATE OR REPLACE FUNCTION js_reverse_string(str STRING)
+RETURNS STRING
+LANGUAGE JAVASCRIPT
+AS
+$$
+    return STR.split('').reverse().join('');
+$$;
+
+-- Using JavaScript UDF
+SELECT js_reverse_string('snowflake') → 'ekalfwons'
+```
+
+### Python UDFs
+
+```sql
+-- Creating Python UDF
+CREATE OR REPLACE FUNCTION py_fibonacci(n INT)
+RETURNS INT
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.8'
+HANDLER = 'fibonacci_handler'
+AS
+$$
+def fibonacci_handler(n):
+    if n <= 1:
+        return n
+    return fibonacci_handler(n-1) + fibonacci_handler(n-2)
+$$;
+
+-- Using Python UDF
+SELECT py_fibonacci(10) → 55
+```
+
+### Stored Procedures
+
+### SQL Stored Procedures
+
+```sql
+-- Creating SQL Stored Procedure
+CREATE OR REPLACE PROCEDURE update_sales_commissions()
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+BEGIN
+    UPDATE sales_reps
+    SET commission = sales * commission_rate
+    WHERE sales > 0;
+    
+    RETURN 'Commission calculation completed';
+END;
+$$;
+
+-- Calling SQL Stored Procedure
+CALL update_sales_commissions() → 'Commission calculation completed'
+```
+
+### JavaScript Stored Procedures
+
+```sql
+-- Creating JavaScript Stored Procedure
+CREATE OR REPLACE PROCEDURE process_new_customers()
+RETURNS STRING
+LANGUAGE JAVASCRIPT
+AS
+$$
+    // Get the current date
+    var current_date = snowflake.execute({sqlText: "SELECT CURRENT_DATE()"});
+    current_date.next();
+    var today = current_date.getColumnValue(1);
+    
+    // Process new customers
+    var stmt = snowflake.createStatement({
+        sqlText: `INSERT INTO customer_status (customer_id, status, processed_date)
+                  SELECT customer_id, 'NEW', ?
+                  FROM customers
+                  WHERE create_date = ?`,
+        binds: [today, today]
+    });
+    
+    var result = stmt.execute();
+    
+    // Return success message with count
+    return "Processed " + stmt.getNumRowsInserted() + " new customers";
+$$;
+
+-- Calling JavaScript Stored Procedure
+CALL process_new_customers() → 'Processed 15 new customers'
+```
+
+### Python Stored Procedures
+
+```sql
+-- Creating Python Stored Procedure
+CREATE OR REPLACE PROCEDURE py_clean_data()
+RETURNS STRING
+LANGUAGE PYTHON
+RUNTIME_VERSION = '3.8'
+HANDLER = 'clean_data_process'
+AS
+$$
+def clean_data_process(snowpark_session):
+    # Read data
+    df = snowpark_session.sql("SELECT * FROM raw_data")
+    
+    # Clean data
+    df = df.na.fill('')  # Replace nulls with empty strings
+    df = df.dropDuplicates()  # Remove duplicates
+    
+    # Write cleaned data
+    df.write.mode("overwrite").saveAsTable("clean_data")
+    
+    return f"Data cleaning completed, processed {df.count()} rows"
+$$;
+
+-- Calling Python Stored Procedure
+CALL py_clean_data() → 'Data cleaning completed, processed 5280 rows'
+```
+
+### Advanced Techniques
+
+### Table Functions
+
+```sql
+-- Creating JavaScript Table Function
+CREATE OR REPLACE FUNCTION generate_date_range(start_date DATE, end_date DATE)
+RETURNS TABLE (date_value DATE)
+LANGUAGE JAVASCRIPT
+AS
+$$
+    var result = [];
+    var current = new Date(START_DATE);
+    var end = new Date(END_DATE);
+    
+    while (current <= end) {
+        result.push({DATE_VALUE: current.toISOString().split('T')[0]});
+        current.setDate(current.getDate() + 1);
+    }
+    
+    return result;
+$$;
+
+-- Using Table Function
+SELECT * FROM TABLE(generate_date_range('2025-04-01', '2025-04-07'));
+```
+
+### Error Handling
+
+```sql
+-- JavaScript Error Handling
+CREATE OR REPLACE PROCEDURE with_error_handling()
+RETURNS STRING
+LANGUAGE JAVASCRIPT
+AS
+$$
+    try {
+        // Attempt some operation
+        snowflake.execute({sqlText: "INSERT INTO target_table SELECT * FROM source_table"});
+        return "Success";
+    } catch (err) {
+        // Handle the error
+        snowflake.execute({
+            sqlText: "INSERT INTO error_log (error_message, error_time) VALUES (?, CURRENT_TIMESTAMP())",
+            binds: [err.message]
+        });
+        return "Error: " + err.message;
+    }
+$$;
+```
+
+### Transaction Management
+
+```sql
+-- SQL Transaction Management
+CREATE OR REPLACE PROCEDURE transfer_funds(from_account STRING, to_account STRING, amount FLOAT)
+RETURNS STRING
+LANGUAGE SQL
+AS
+$$
+BEGIN
+    -- Start transaction
+    BEGIN TRANSACTION;
+    
+    -- Decrease from account
+    UPDATE accounts SET balance = balance - :amount WHERE account_id = :from_account;
+    
+    -- Increase to account
+    UPDATE accounts SET balance = balance + :amount WHERE account_id = :to_account;
+    
+    -- Commit transaction
+    COMMIT;
+    
+    RETURN 'Transfer completed successfully';
+EXCEPTION
+    WHEN OTHER THEN
+        ROLLBACK;
+        RETURN 'Transfer failed: ' || SQLERRM;
+END;
+$$;
+```
+
+### Dynamic SQL
+
+```sql
+-- JavaScript Dynamic SQL
+CREATE OR REPLACE PROCEDURE dynamic_query(table_name STRING)
+RETURNS TABLE (column_name STRING, data_type STRING)
+LANGUAGE JAVASCRIPT
+AS
+$$
+    // Validate input to prevent SQL injection
+    if (!/^[A-Za-z0-9_]+$/.test(TABLE_NAME)) {
+        throw new Error("Invalid table name");
+    }
+    
+    // Execute dynamic query
+    var result = snowflake.execute({
+        sqlText: `SELECT column_name, data_type 
+                  FROM information_schema.columns 
+                  WHERE table_name = UPPER(?)`,
+        binds: [TABLE_NAME]
+    });
+    
+    // Process results
+    var columns = [];
+    while (result.next()) {
+        columns.push({
+            COLUMN_NAME: result.getColumnValue(1),
+            DATA_TYPE: result.getColumnValue(2)
+        });
+    }
+    
+    return columns;
+$$;
+```
+
+### Best Practices
+
+### Performance Optimization
+
+1. **Use Appropriate Data Types**
+   - Choose appropriate data types (e.g., NUMBER instead of VARCHAR for numeric values)
+   - Use VARCHAR only for variable-length strings
+
+2. **Query Optimization**
+   - Filter data early in the query
+   - Use appropriate join types (INNER, LEFT, etc.)
+   - Avoid SELECT * unless necessary
+   - Leverage result caching with appropriate hints
+
+3. **UDF Optimization**
+   - Keep UDFs simple and focused
+   - Use SQL UDFs when possible (faster than JavaScript/Python)
+   - Use vectorized UDFs for batch processing
+
+4. **Resource Management**
+   - Set appropriate warehouse size
+   - Suspend idle warehouses
+   - Use multi-cluster warehouses for variable workloads
+
+### Security Practices
+
+1. **Input Validation**
+   - Validate all inputs to prevent SQL injection
+   - Use parameterized queries with bind variables
+
+2. **Secure Credentials**
+   - Avoid hardcoding credentials in procedures
+   - Use Snowflake Secure Objects for sensitive data
+
+3. **Access Control**
+   - Apply least privilege principle
+   - Use roles and secure views to limit data access
+   - Implement row-level security when needed
+
+4. **Audit**
+   - Enable query history for auditing
+   - Set up alerts for suspicious activities
+
+### Maintenance and Debugging
+
+1. **Modular Design**
+   - Break complex procedures into smaller, reusable parts
+   - Create helper functions for common operations
+
+2. **Logging**
+   - Implement logging for complex operations
+   - Log start/end times, parameters, and results
+
+3. **Error Handling**
+   - Implement comprehensive error handling
+   - Use custom error codes/messages for clarity
+
+4. **Testing**
+   - Create test cases for procedures and functions
+   - Test edge cases and error conditions
+
+### Development Workflow
+
+1. **Version Control**
+   - Use version control systems for SQL code
+   - Include comments and documentation
+
+2. **Deployment**
+   - Use CI/CD pipelines for deployment
+   - Implement blue/green deployment for critical systems
+
+3. **Documentation**
+   - Document purpose, parameters, and return values
+   - Include examples of usage
+
+4. **Code Review**
+   - Conduct peer reviews for complex functions/procedures
+   - Use consistent naming conventions
+
 
 ## Query Optimization
 
