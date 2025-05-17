@@ -1720,3 +1720,825 @@ ALTER DATABASE my_database
 SET DATA_RETENTION_TIME_IN_DAYS = 7;
 ```
 
+# Snowflake Complete Reference Guide
+
+## Table of Contents
+- [Core Concepts](#core-concepts)
+- [Architecture Overview](#architecture-overview)
+- [Account and Session Management](#account-and-session-management)
+- [Data Definition Language (DDL)](#data-definition-language-ddl)
+- [Data Manipulation Language (DML)](#data-manipulation-language-dml)
+- [Advanced Data Loading](#advanced-data-loading)
+- [Data Sharing and Security](#data-sharing-and-security)
+- [Advanced Features](#advanced-features)
+- [Performance Optimization](#performance-optimization)
+- [Functions Reference](#functions-reference)
+- [System Views and Monitoring](#system-views-and-monitoring)
+
+## Core Concepts
+
+### Key Components
+| Component | Description |
+|-----------|-------------|
+| **Database** | Container for schemas |
+| **Schema** | Container for database objects (tables, views, etc.) |
+| **Table** | Storage for data, either permanent or temporary |
+| **View** | Virtual table based on a query |
+| **Warehouse** | Compute resource for executing queries |
+| **Stage** | Location for storing data files to be loaded |
+| **Role** | Collection of privileges granted to users |
+| **User** | Identity that connects to Snowflake |
+
+### Data Types
+| Type | Description | Example |
+|------|-------------|---------|
+| `NUMBER` | Fixed-point and floating-point numbers | `NUMBER(38,0)`, `NUMBER(10,2)` |
+| `VARCHAR` | Variable-length character string | `VARCHAR(255)` |
+| `CHAR` | Fixed-length character string | `CHAR(10)` |
+| `DATE` | Calendar date | `DATE` |
+| `TIME` | Time of day | `TIME` |
+| `TIMESTAMP` | Date and time | `TIMESTAMP`, `TIMESTAMP_LTZ` |
+| `BOOLEAN` | Logical boolean | `BOOLEAN` |
+| `BINARY` | Binary data | `BINARY` |
+| `VARIANT` | Semi-structured data | `VARIANT` |
+| `OBJECT` | JSON object | `OBJECT` |
+| `ARRAY` | JSON array | `ARRAY` |
+| `GEOGRAPHY` | Spatial data type | `GEOGRAPHY` |
+
+## Architecture Overview
+
+### Multi-Cluster, Shared Data Architecture
+Snowflake's architecture consists of three key layers:
+1. **Storage Layer**: Stores all data in cloud storage (S3, Azure Blob, GCP)
+2. **Compute Layer**: Virtual warehouses that process queries independently
+3. **Cloud Services Layer**: Handles infrastructure, metadata, security, etc.
+
+### Warehouse Sizes
+| Size | Description | Relative Power |
+|------|-------------|----------------|
+| X-Small | Basic processing for small workloads | 1x |
+| Small | General purpose | 2x |
+| Medium | Moderate workloads | 4x |
+| Large | Complex analytics | 8x |
+| X-Large | Data science workloads | 16x |
+| 2X-Large to 6X-Large | Big data processing | 32x to 512x |
+
+## Account and Session Management
+
+### Login and Context
+```sql
+-- Login
+SNOWSQL -a <account> -u <username> -d <database> -s <schema> -w <warehouse>
+
+-- Set context
+USE ROLE <role_name>;
+USE DATABASE <database_name>;
+USE SCHEMA <schema_name>;
+USE WAREHOUSE <warehouse_name>;
+
+-- View current context
+SELECT CURRENT_ROLE(), CURRENT_DATABASE(), CURRENT_SCHEMA(), CURRENT_WAREHOUSE();
+```
+
+### Warehouse Management
+```sql
+-- Create warehouse
+CREATE WAREHOUSE <name>
+  WITH WAREHOUSE_SIZE = 'SMALL'
+  AUTO_SUSPEND = 300
+  AUTO_RESUME = TRUE
+  INITIALLY_SUSPENDED = TRUE;
+
+-- Modify warehouse
+ALTER WAREHOUSE <name> SET WAREHOUSE_SIZE = 'MEDIUM';
+
+-- Start/stop warehouse
+ALTER WAREHOUSE <name> RESUME;
+ALTER WAREHOUSE <name> SUSPEND;
+
+-- Scale out/in (Multi-cluster)
+ALTER WAREHOUSE <name> SET
+  MIN_CLUSTER_COUNT = 1
+  MAX_CLUSTER_COUNT = 5
+  SCALING_POLICY = 'STANDARD';
+```
+
+## Data Definition Language (DDL)
+
+### Database Operations
+```sql
+-- Create database
+CREATE DATABASE <database_name>;
+
+-- Create with data retention
+CREATE DATABASE <database_name> 
+  DATA_RETENTION_TIME_IN_DAYS = 90;
+
+-- Drop database
+DROP DATABASE <database_name>;
+
+-- Clone database
+CREATE DATABASE <new_db> CLONE <source_db>;
+```
+
+### Schema Operations
+```sql
+-- Create schema
+CREATE SCHEMA <schema_name>;
+
+-- Create schema with data retention
+CREATE SCHEMA <schema_name>
+  DATA_RETENTION_TIME_IN_DAYS = 90;
+
+-- Drop schema
+DROP SCHEMA <schema_name>;
+
+-- Clone schema
+CREATE SCHEMA <new_schema> CLONE <source_schema>;
+```
+
+### Table Operations
+```sql
+-- Create table
+CREATE TABLE <table_name> (
+  column1 VARCHAR(100),
+  column2 NUMBER(38,0),
+  column3 DATE,
+  column4 VARIANT
+);
+
+-- Create table with constraints
+CREATE TABLE <table_name> (
+  id NUMBER PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(255) UNIQUE,
+  CHECK (LENGTH(name) > 0)
+);
+
+-- Create table from query
+CREATE TABLE <table_name> AS
+SELECT * FROM <source_table> WHERE <condition>;
+
+-- Create temporary table
+CREATE TEMPORARY TABLE <table_name> (
+  column1 VARCHAR(100),
+  column2 NUMBER(38,0)
+);
+
+-- Create transient table (no fail-safe)
+CREATE TRANSIENT TABLE <table_name> (
+  column1 VARCHAR(100),
+  column2 NUMBER(38,0)
+);
+
+-- Create external table
+CREATE EXTERNAL TABLE <table_name> (
+  column1 VARCHAR AS (VALUE:c1::VARCHAR),
+  column2 NUMBER AS (VALUE:c2::NUMBER)
+)
+LOCATION = @<external_stage>
+FILE_FORMAT = (TYPE = 'PARQUET');
+
+-- Time travel (restore from past state)
+CREATE TABLE <table_name> CLONE <source_table> AT (OFFSET => -60*24);
+```
+
+### Table Alterations
+```sql
+-- Add column
+ALTER TABLE <table_name> ADD COLUMN column5 TIMESTAMP;
+
+-- Drop column
+ALTER TABLE <table_name> DROP COLUMN column5;
+
+-- Rename column
+ALTER TABLE <table_name> RENAME COLUMN column5 TO new_column_name;
+
+-- Modify column
+ALTER TABLE <table_name> ALTER COLUMN column1 SET DATA TYPE VARCHAR(200);
+
+-- Rename table
+ALTER TABLE <table_name> RENAME TO <new_table_name>;
+
+-- Add table constraint
+ALTER TABLE <table_name> ADD CONSTRAINT pk_id PRIMARY KEY (id);
+
+-- Drop table constraint  
+ALTER TABLE <table_name> DROP CONSTRAINT pk_id;
+
+-- Enable/disable change tracking
+ALTER TABLE <table_name> SET CHANGE_TRACKING = TRUE;
+```
+
+### Views
+```sql
+-- Create view
+CREATE VIEW <view_name> AS
+SELECT * FROM <table_name> WHERE condition;
+
+-- Create secure view (source SQL hidden)
+CREATE SECURE VIEW <view_name> AS
+SELECT * FROM <table_name> WHERE condition;
+
+-- Create materialized view (stored results)
+CREATE MATERIALIZED VIEW <view_name> AS
+SELECT dept, SUM(salary) as total_salary
+FROM employees
+GROUP BY dept;
+
+-- Drop view
+DROP VIEW <view_name>;
+```
+
+### Sequences
+```sql
+-- Create sequence
+CREATE SEQUENCE <sequence_name>
+  START = 1
+  INCREMENT = 1
+  COMMENT = 'Primary key sequence';
+
+-- Get next value
+SELECT <sequence_name>.NEXTVAL;
+
+-- Get current value
+SELECT <sequence_name>.CURRVAL;
+```
+
+### Stage Operations
+```sql
+-- Create internal stage
+CREATE STAGE <stage_name>
+  FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',' SKIP_HEADER = 1);
+
+-- Create external stage (AWS S3)
+CREATE STAGE <stage_name>
+  URL = 's3://bucket/path'
+  STORAGE_INTEGRATION = <integration_name>
+  FILE_FORMAT = (TYPE = 'PARQUET');
+
+-- List files in stage
+LIST @<stage_name>;
+
+-- Remove stage
+DROP STAGE <stage_name>;
+```
+
+## Data Manipulation Language (DML)
+
+### Basic DML Operations
+```sql
+-- Insert data
+INSERT INTO <table_name> (column1, column2) VALUES ('value1', 100);
+
+-- Bulk insert
+INSERT INTO <table_name>
+SELECT * FROM <source_table>;
+
+-- Insert with CTE
+WITH cte AS (
+  SELECT * FROM <source_table> WHERE condition
+)
+INSERT INTO <table_name>
+SELECT * FROM cte;
+
+-- Update data
+UPDATE <table_name>
+SET column1 = 'new_value'
+WHERE column2 > 100;
+
+-- Delete data
+DELETE FROM <table_name>
+WHERE column1 = 'value';
+
+-- Truncate table (non-recoverable)
+TRUNCATE TABLE <table_name>;
+
+-- Merge (upsert) operation
+MERGE INTO target_table t
+USING source_table s
+  ON t.id = s.id
+WHEN MATCHED THEN
+  UPDATE SET t.column1 = s.column1, t.column2 = s.column2
+WHEN NOT MATCHED THEN
+  INSERT (id, column1, column2)
+  VALUES (s.id, s.column1, s.column2);
+```
+
+### Query Operators
+```sql
+-- Joins
+SELECT a.*, b.* 
+FROM table_a a 
+INNER JOIN table_b b ON a.id = b.id;
+
+-- Other join types: LEFT, RIGHT, FULL, CROSS
+
+-- Aggregation
+SELECT category, 
+       COUNT(*) as count, 
+       SUM(amount) as total,
+       AVG(amount) as average
+FROM <table_name>
+GROUP BY category;
+
+-- Window functions
+SELECT name, 
+       department,
+       salary,
+       RANK() OVER (PARTITION BY department ORDER BY salary DESC) as rank,
+       AVG(salary) OVER (PARTITION BY department) as dept_avg
+FROM employees;
+```
+
+## Advanced Data Loading
+
+### Loading Data
+```sql
+-- Copy data from files in stage
+COPY INTO <table_name>
+FROM @<stage_name>
+FILE_FORMAT = (TYPE = 'CSV' FIELD_DELIMITER = ',' SKIP_HEADER = 1)
+PATTERN = '.*\.csv'
+ON_ERROR = 'CONTINUE';
+
+-- Copy with transformation
+COPY INTO <table_name> (col1, col2)
+FROM (SELECT $1, $2 FROM @<stage_name>)
+FILE_FORMAT = (TYPE = 'CSV');
+
+-- Copy to stage
+COPY INTO @<stage_name>/output/
+FROM <table_name>
+FILE_FORMAT = (TYPE = 'PARQUET')
+HEADER = TRUE;
+
+-- Create file format
+CREATE FILE FORMAT <format_name>
+  TYPE = 'CSV'
+  FIELD_DELIMITER = ','
+  COMPRESSION = 'AUTO'
+  SKIP_HEADER = 1;
+```
+
+### Unloading Data
+```sql
+-- Unload query results to stage
+COPY INTO @<stage_name>/output/
+FROM (SELECT * FROM <table_name> WHERE condition)
+FILE_FORMAT = (TYPE = 'PARQUET');
+
+-- Unload with partition
+COPY INTO @<stage_name>/output/
+FROM (SELECT * FROM <table_name>)
+PARTITION BY (date_column)
+FILE_FORMAT = (TYPE = 'PARQUET');
+```
+
+## Data Sharing and Security
+
+### Roles and Privileges
+```sql
+-- Create role
+CREATE ROLE <role_name>;
+
+-- Grant privileges
+GRANT USAGE ON DATABASE <database_name> TO ROLE <role_name>;
+GRANT USAGE ON SCHEMA <schema_name> TO ROLE <role_name>;
+GRANT SELECT ON TABLE <table_name> TO ROLE <role_name>;
+GRANT INSERT, UPDATE, DELETE ON TABLE <table_name> TO ROLE <role_name>;
+
+-- Grant role to user
+GRANT ROLE <role_name> TO USER <user_name>;
+
+-- Revoke privileges
+REVOKE SELECT ON TABLE <table_name> FROM ROLE <role_name>;
+```
+
+### User Management
+```sql
+-- Create user
+CREATE USER <user_name>
+  PASSWORD = '<password>'
+  DEFAULT_ROLE = <default_role>
+  DEFAULT_WAREHOUSE = <default_warehouse>;
+
+-- Alter user
+ALTER USER <user_name> SET DEFAULT_ROLE = <new_role>;
+
+-- Drop user
+DROP USER <user_name>;
+```
+
+### Data Sharing
+```sql
+-- Create share
+CREATE SHARE <share_name>;
+
+-- Grant privileges to share
+GRANT USAGE ON DATABASE <database_name> TO SHARE <share_name>;
+GRANT USAGE ON SCHEMA <schema_name> TO SHARE <share_name>;
+GRANT SELECT ON TABLE <table_name> TO SHARE <share_name>;
+
+-- Add account to share
+ALTER SHARE <share_name> ADD ACCOUNTS = <account_identifier>;
+
+-- Create database from share
+CREATE DATABASE <database_name> FROM SHARE <provider>.<share_name>;
+```
+
+### Masking and Row Access Policies
+```sql
+-- Create masking policy
+CREATE MASKING POLICY email_mask AS
+  (val STRING) RETURNS STRING ->
+    CASE
+      WHEN CURRENT_ROLE() IN ('ADMIN') THEN val
+      ELSE REGEXP_REPLACE(val, '.+@', '****@')
+    END;
+
+-- Apply masking policy
+ALTER TABLE <table_name> MODIFY COLUMN email
+  SET MASKING POLICY email_mask;
+
+-- Create row access policy
+CREATE ROW ACCESS POLICY dept_policy AS
+  (val STRING) RETURNS BOOLEAN ->
+    CURRENT_ROLE() = 'ADMIN' OR val = CURRENT_USER();
+
+-- Apply row access policy
+ALTER TABLE employees ADD ROW ACCESS POLICY dept_policy ON (department);
+```
+
+## Advanced Features
+
+### Streams
+```sql
+-- Create stream (change tracking)
+CREATE STREAM <stream_name> ON TABLE <table_name>;
+
+-- Create stream with append only
+CREATE STREAM <stream_name>
+  ON TABLE <table_name>
+  APPEND_ONLY = TRUE;
+
+-- Consume stream 
+INSERT INTO <target_table>
+SELECT * FROM <stream_name>;
+```
+
+### Tasks
+```sql
+-- Create task
+CREATE TASK <task_name>
+  WAREHOUSE = <warehouse_name>
+  SCHEDULE = 'USING CRON 0 0 * * * America/Los_Angeles'
+  AS
+  INSERT INTO <target_table>
+  SELECT * FROM <source_table>
+  WHERE date_column = CURRENT_DATE();
+
+-- Create task with WHEN condition
+CREATE TASK <task_name>
+  WAREHOUSE = <warehouse_name>
+  SCHEDULE = 'USING CRON 0 0 * * * America/Los_Angeles'
+  WHEN SYSTEM$STREAM_HAS_DATA('<stream_name>')
+  AS
+  INSERT INTO <target_table>
+  SELECT * FROM <stream_name>;
+
+-- Alter task state
+ALTER TASK <task_name> RESUME;
+ALTER TASK <task_name> SUSPEND;
+
+-- Create task DAG (dependency)
+CREATE TASK <child_task>
+  WAREHOUSE = <warehouse_name>
+  AFTER <parent_task>
+  AS
+  MERGE INTO <table_name> ...;
+```
+
+### Stored Procedures
+```sql
+-- Create JavaScript procedure
+CREATE OR REPLACE PROCEDURE process_data()
+  RETURNS STRING
+  LANGUAGE JAVASCRIPT
+  AS
+  $$
+    var result = snowflake.execute({sqlText: "SELECT COUNT(*) FROM table"});
+    result.next();
+    var count = result.getColumnValue(1);
+    
+    snowflake.execute({
+      sqlText: "INSERT INTO log_table(message) VALUES (?)",
+      binds: ["Processed " + count + " records"]
+    });
+    
+    return "Success";
+  $$;
+
+-- Call procedure
+CALL process_data();
+```
+
+### UDFs (User-Defined Functions)
+```sql
+-- Create SQL UDF
+CREATE FUNCTION sql_udf(x FLOAT, y FLOAT)
+  RETURNS FLOAT
+  AS
+  $$
+    x * y
+  $$;
+
+-- Create JavaScript UDF
+CREATE FUNCTION js_udf(str STRING)
+  RETURNS STRING
+  LANGUAGE JAVASCRIPT
+  AS
+  $$
+    return "Hello, " + STR;
+  $$;
+
+-- Call UDF
+SELECT sql_udf(10, 20);
+SELECT js_udf('World');
+```
+
+### External Functions
+```sql
+-- Create API integration
+CREATE API INTEGRATION api_integration
+  API_PROVIDER = 'aws_api_gateway'
+  API_AWS_ROLE_ARN = 'arn:aws:iam::123456789012:role/snowflake-external-func-role'
+  API_ALLOWED_PREFIXES = ('https://xyz123.execute-api.us-west-2.amazonaws.com/prod/');
+
+-- Create external function
+CREATE EXTERNAL FUNCTION translate_text(text STRING, source_lang STRING, target_lang STRING)
+  RETURNS VARIANT
+  API_INTEGRATION = api_integration
+  AS 'https://xyz123.execute-api.us-west-2.amazonaws.com/prod/translate';
+
+-- Call external function
+SELECT translate_text('Hello', 'en', 'es');
+```
+
+## Performance Optimization
+
+### Clustering Keys
+```sql
+-- Create table with clustering key
+CREATE TABLE <table_name> (
+  date_column DATE,
+  region VARCHAR,
+  product VARCHAR,
+  amount NUMBER
+)
+CLUSTER BY (date_column, region);
+
+-- Alter table clustering key
+ALTER TABLE <table_name> CLUSTER BY (date_column, region);
+
+-- Reclustering
+ALTER TABLE <table_name> RECLUSTER;
+
+-- Check clustering information
+SELECT 
+  system$clustering_information('<table_name>', '(date_column, region)');
+```
+
+### Query Optimization
+```sql
+-- Use EXPLAIN
+EXPLAIN
+SELECT * FROM <table_name> WHERE condition;
+
+-- Check query profile
+SELECT *
+FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY())
+ORDER BY START_TIME DESC
+LIMIT 10;
+
+-- View detailed query profile
+SELECT *
+FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_SESSION())
+WHERE QUERY_ID = '<query_id>';
+```
+
+### Table Statistics
+```sql
+-- Analyze table
+SELECT SYSTEM$ESTIMATE_QUERY_ACCELERATION('SELECT * FROM large_table');
+
+-- Search optimization service
+ALTER TABLE <table_name> ADD SEARCH OPTIMIZATION;
+```
+
+### Materialized Views
+```sql
+-- Create materialized view
+CREATE MATERIALIZED VIEW <mv_name> AS
+SELECT customer_id, 
+       SUM(amount) as total_amount, 
+       COUNT(*) as order_count
+FROM orders
+GROUP BY customer_id;
+
+-- Refresh materialized view
+ALTER MATERIALIZED VIEW <mv_name> SUSPEND;
+ALTER MATERIALIZED VIEW <mv_name> RESUME;
+```
+
+## Functions Reference
+
+### Numeric Functions
+```sql
+ROUND(number [, precision])        -- ROUND(125.315, 2) = 125.32
+FLOOR(number)                      -- FLOOR(1.7) = 1
+CEIL(number)                       -- CEIL(1.2) = 2
+ABS(number)                        -- ABS(-10) = 10
+SQRT(number)                       -- SQRT(25) = 5
+POW(base, exponent)                -- POW(2, 3) = 8
+LOG(number)                        -- LOG(100) = 4.60517...
+EXP(number)                        -- EXP(1) = 2.71828...
+```
+
+### String Functions
+```sql
+CONCAT(str1, str2, ...)            -- CONCAT('Hello', ' ', 'World') = 'Hello World'
+LENGTH(string)                     -- LENGTH('Snowflake') = 9
+UPPER(string)                      -- UPPER('Snowflake') = 'SNOWFLAKE'
+LOWER(string)                      -- LOWER('Snowflake') = 'snowflake'
+TRIM(string)                       -- TRIM('  hello  ') = 'hello'
+LTRIM(string)                      -- LTRIM('  hello  ') = 'hello  '
+RTRIM(string)                      -- RTRIM('  hello  ') = '  hello'
+REPLACE(str, old, new)             -- REPLACE('Hello World', 'World', 'Snowflake') = 'Hello Snowflake'
+SUBSTRING(str, start, length)      -- SUBSTRING('Snowflake', 1, 4) = 'Snow'
+SPLIT_PART(str, delimiter, part)   -- SPLIT_PART('a,b,c', ',', 2) = 'b'
+REGEXP_REPLACE(str, pattern, rep)  -- REGEXP_REPLACE('Hello123', '[0-9]', '') = 'Hello'
+```
+
+### Date/Time Functions
+```sql
+CURRENT_DATE()                     -- Returns current date
+CURRENT_TIME()                     -- Returns current time
+CURRENT_TIMESTAMP()                -- Returns current timestamp
+DATE_TRUNC(part, date)             -- DATE_TRUNC('MONTH', CURRENT_DATE()) = First day of current month
+DATEADD(part, n, date)             -- DATEADD('DAY', 7, CURRENT_DATE()) = Current date + 7 days
+DATEDIFF(part, start, end)         -- DATEDIFF('DAY', '2021-01-01', '2021-01-10') = 9
+EXTRACT(part FROM date)            -- EXTRACT(YEAR FROM CURRENT_DATE()) = Current year
+TO_DATE(string)                    -- TO_DATE('2021-01-01') = DATE '2021-01-01'
+TO_TIMESTAMP(string)               -- TO_TIMESTAMP('2021-01-01 12:00:00') = TIMESTAMP '2021-01-01 12:00:00'
+CONVERT_TIMEZONE(tz, timestamp)    -- CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', CURRENT_TIMESTAMP())
+```
+
+### Conditional Functions
+```sql
+COALESCE(value1, value2, ...)      -- Returns first non-NULL value
+NVL(value1, value2)                -- If value1 is NULL, returns value2, else value1
+IFNULL(value1, value2)             -- If value1 is NULL, returns value2, else value1
+NULLIF(value1, value2)             -- If value1 = value2, returns NULL, else value1
+IFF(condition, true_expr, false_expr) -- If condition is true, returns true_expr, else false_expr
+CASE
+  WHEN condition1 THEN result1
+  WHEN condition2 THEN result2
+  ELSE result3
+END                                -- Evaluates conditions and returns corresponding result
+```
+
+### Semi-structured Data Functions
+```sql
+PARSE_JSON(string)                 -- Parses string as JSON
+GET_PATH(json, path)               -- GET_PATH(PARSE_JSON('{"a":{"b":1}}'), 'a.b') = 1
+FLATTEN(json_array)                -- Normalizes nested arrays
+ARRAY_SIZE(array)                  -- Returns number of elements in array
+ARRAY_CONTAINS(array, element)     -- Checks if array contains element
+ARRAY_CONSTRUCT(elem1, elem2, ...) -- Creates an array from elements
+OBJECT_CONSTRUCT(k1, v1, k2, v2)   -- Creates a JSON object from key-value pairs
+TRY_PARSE_JSON(string)             -- Like PARSE_JSON but returns NULL if parsing fails
+JSON_EXTRACT_PATH_TEXT(json, path) -- Extracts text from JSON by path
+```
+
+### Window Functions
+```sql
+ROW_NUMBER() OVER (...)            -- Unique row number
+RANK() OVER (...)                  -- Rank with gaps
+DENSE_RANK() OVER (...)            -- Rank without gaps
+NTILE(n) OVER (...)                -- Divides rows into n groups
+LAG(expr, offset) OVER (...)       -- Value from previous row
+LEAD(expr, offset) OVER (...)      -- Value from next row
+FIRST_VALUE(expr) OVER (...)       -- First value in window
+LAST_VALUE(expr) OVER (...)        -- Last value in window
+```
+
+### Aggregate Functions
+```sql
+COUNT(expr)                        -- Count of non-NULL values
+SUM(expr)                          -- Sum of values
+AVG(expr)                          -- Average of values
+MIN(expr)                          -- Minimum value
+MAX(expr)                          -- Maximum value
+MEDIAN(expr)                       -- Median value
+PERCENTILE_CONT(p) WITHIN GROUP (ORDER BY expr) -- Continuous percentile
+LISTAGG(expr, delimiter) WITHIN GROUP (ORDER BY expr) -- String aggregation
+APPROX_COUNT_DISTINCT(expr)        -- Approximate count distinct (faster)
+```
+
+## System Views and Monitoring
+
+### Account Usage Views
+```sql
+-- Query history
+SELECT *
+FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+WHERE START_TIME >= DATEADD(day, -7, CURRENT_TIMESTAMP())
+ORDER BY START_TIME DESC;
+
+-- Warehouse usage
+SELECT *
+FROM SNOWFLAKE.ACCOUNT_USAGE.WAREHOUSE_METERING_HISTORY
+WHERE START_TIME >= DATEADD(day, -7, CURRENT_TIMESTAMP())
+ORDER BY START_TIME DESC;
+
+-- Storage usage
+SELECT *
+FROM SNOWFLAKE.ACCOUNT_USAGE.TABLE_STORAGE_METRICS
+ORDER BY ACTIVE_BYTES DESC;
+
+-- Failed logins
+SELECT *
+FROM SNOWFLAKE.ACCOUNT_USAGE.LOGIN_HISTORY
+WHERE IS_SUCCESS = 'NO'
+AND EVENT_TIMESTAMP >= DATEADD(day, -7, CURRENT_TIMESTAMP());
+```
+
+### Task Monitoring
+```sql
+-- Task history
+SELECT * 
+FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY())
+ORDER BY SCHEDULED_TIME DESC;
+
+-- Task dependency tree
+SELECT *
+FROM TABLE(INFORMATION_SCHEMA.TASK_DEPENDENTS())
+ORDER BY SCHEDULED_TIME DESC;
+```
+
+### Resource Monitors
+```sql
+-- Create resource monitor
+CREATE RESOURCE MONITOR <monitor_name>
+  WITH
+    CREDIT_QUOTA = 100
+    FREQUENCY = DAILY
+    START_TIMESTAMP = IMMEDIATELY
+    TRIGGERS
+      ON 75 PERCENT DO NOTIFY
+      ON 100 PERCENT DO SUSPEND;
+
+-- Assign to warehouse
+ALTER WAREHOUSE <warehouse_name> SET RESOURCE_MONITOR = <monitor_name>;
+```
+
+### Performance Optimization Queries
+```sql
+-- Find expensive queries
+SELECT 
+  QUERY_ID,
+  QUERY_TEXT,
+  DATABASE_NAME,
+  SCHEMA_NAME,
+  EXECUTION_TIME/1000 as EXECUTION_TIME_SECONDS,
+  BYTES_SCANNED/1024/1024 as MB_SCANNED
+FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+WHERE EXECUTION_TIME > 60000  -- queries taking more than 60 seconds
+AND START_TIME >= DATEADD(day, -7, CURRENT_TIMESTAMP())
+ORDER BY EXECUTION_TIME DESC
+LIMIT 20;
+
+-- Warehouse utilization
+SELECT
+  WAREHOUSE_NAME,
+  COUNT(*) as QUERY_COUNT,
+  AVG(EXECUTION_TIME)/1000 as AVG_EXECUTION_SECONDS,
+  MAX(EXECUTION_TIME)/1000 as MAX_EXECUTION_SECONDS
+FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+WHERE START_TIME >= DATEADD(day, -7, CURRENT_TIMESTAMP())
+GROUP BY WAREHOUSE_NAME
+ORDER BY QUERY_COUNT DESC;
+
+-- Table access frequency
+SELECT
+  TABLE_CATALOG,
+  TABLE_SCHEMA,
+  TABLE_NAME,
+  COUNT(*) as ACCESS_COUNT
+FROM SNOWFLAKE.ACCOUNT_USAGE.ACCESS_HISTORY
+WHERE START_TIME >= DATEADD(day, -30, CURRENT_TIMESTAMP())
+GROUP BY 1,2,3
+ORDER BY ACCESS_COUNT DESC
+LIMIT 20;
+```
